@@ -24,3 +24,7 @@ func SprintToken() {
 	token := TOKEN
 	slog.Info("token:" + token) // want `Value that looks like a password, secret, or API key assignment`
 }
+
+func NoSensitive() {
+	slog.Warn("config is invalid")
+}
