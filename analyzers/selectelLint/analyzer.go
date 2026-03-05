@@ -18,9 +18,17 @@ type Analyzer struct {
 	config *config.Config
 }
 
-func NewAnalyzer() *analysis.Analyzer {
+func NewAnalyzer(conf ...*config.Config) *analysis.Analyzer {
+	var cfg *config.Config
+
+	if len(conf) == 0 {
+		cfg = config.NewConfig()
+	} else {
+		cfg = conf[0]
+	}
+
 	an := &Analyzer{
-		config: config.NewConfig(),
+		config: cfg,
 	}
 
 	return &analysis.Analyzer{
@@ -34,18 +42,17 @@ func NewAnalyzer() *analysis.Analyzer {
 
 func (an *Analyzer) Flags() flag.FlagSet {
 	flags := flag.NewFlagSet("CapitalAnalyzer", flag.ExitOnError)
-	flags.BoolVar(&an.config.CapitalLetter, "capitalLetter", true, "Enable capital letter check")
-	flags.BoolVar(&an.config.EnglishLetter, "englishLetter", true, "Enable english letter check")
-	flags.BoolVar(&an.config.SpecialLetters, "specialLetter", true, "Enable special letter check")
-	flags.BoolVar(&an.config.SensitiveData, "sensitiveData", true, "Enable sensitive data check")
-	flags.BoolVar(&an.config.EnableCustomRules, "enableCustomRules", false, "Enable custom rules")
+	flags.BoolVar(&an.config.CapitalLetter, "capitalLetter", an.config.CapitalLetter, "Enable capital letter check")
+	flags.BoolVar(&an.config.EnglishLetter, "englishLetter", an.config.EnglishLetter, "Enable english letter check")
+	flags.BoolVar(&an.config.SpecialLetters, "specialLetter", an.config.SpecialLetters, "Enable special letter check")
+	flags.BoolVar(&an.config.SensitiveData, "sensitiveData", an.config.SensitiveData, "Enable sensitive data check")
+	flags.BoolVar(&an.config.EnableCustomRules, "enableCustomRules", an.config.EnableCustomRules, "Enable custom rules")
 
 	return *flags
 }
 
 func (an *Analyzer) Run(pass *analysis.Pass) (interface{}, error) {
 	inspectorVar := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
 	}

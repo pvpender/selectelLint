@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/golangci/plugin-module-register v0.1.1 // indirect
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 )
