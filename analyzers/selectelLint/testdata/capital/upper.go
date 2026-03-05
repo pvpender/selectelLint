@@ -1,4 +1,4 @@
-package testdata
+package capital
 
 import "log/slog"
 
@@ -8,4 +8,5 @@ func TestSimple() {
 
 func Normal() {
 	slog.Info("normal log")
+
 }

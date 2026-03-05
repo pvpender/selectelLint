@@ -2,14 +2,15 @@ package selectelLint
 
 import (
 	"flag"
-	"fmt"
+	detector "github.com/kevinwang15/sensitive-data-detector"
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"log/slog"
 	"pvpender/selectelLint/config"
+	"regexp"
+	"strings"
 	"unicode"
 )
 
@@ -18,31 +19,31 @@ type Analyzer struct {
 }
 
 func NewAnalyzer() *analysis.Analyzer {
-	ca := &Analyzer{
+	an := &Analyzer{
 		config: config.NewConfig(),
 	}
 
 	return &analysis.Analyzer{
 		Name:     "CapitalAnalyzer",
 		Doc:      "Checks that there are no capitals in logs",
-		Flags:    ca.Flags(),
-		Run:      ca.Run,
+		Flags:    an.Flags(),
+		Run:      an.Run,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
 }
 
-func (ca *Analyzer) Flags() flag.FlagSet {
+func (an *Analyzer) Flags() flag.FlagSet {
 	flags := flag.NewFlagSet("CapitalAnalyzer", flag.ExitOnError)
-	flags.BoolVar(&ca.config.CapitalLetter, "capitalLetter", true, "Enable capital letter check")
-	flags.BoolVar(&ca.config.EnglishLetter, "englishLetter", true, "Enable english letter check")
-	flags.BoolVar(&ca.config.SpecialLetters, "specialLetter", true, "Enable special letter check")
-	flags.BoolVar(&ca.config.SensitiveData, "sensitiveData", true, "Enable sensitive data")
-	flags.BoolVar(&ca.config.EnableCustomRules, "enableCustomRules", false, "Enable custom rules")
+	flags.BoolVar(&an.config.CapitalLetter, "capitalLetter", true, "Enable capital letter check")
+	flags.BoolVar(&an.config.EnglishLetter, "englishLetter", true, "Enable english letter check")
+	flags.BoolVar(&an.config.SpecialLetters, "specialLetter", true, "Enable special letter check")
+	flags.BoolVar(&an.config.SensitiveData, "sensitiveData", true, "Enable sensitive data check")
+	flags.BoolVar(&an.config.EnableCustomRules, "enableCustomRules", false, "Enable custom rules")
 
 	return *flags
 }
 
-func (ca *Analyzer) Run(pass *analysis.Pass) (interface{}, error) {
+func (an *Analyzer) Run(pass *analysis.Pass) (interface{}, error) {
 	inspectorVar := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -55,32 +56,38 @@ func (ca *Analyzer) Run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		if !ca.isLogFunction(call) {
+		if !an.isLogFunction(call) {
 			return
 		}
 
-		message, exists := ca.getMessage(call)
+		message, exists := an.getMessage(call)
 
 		if !exists {
 			return
 		}
 
-		if ca.config.CapitalLetter {
-			if msg, fail := ca.checkCapital(message); fail {
+		if an.config.CapitalLetter {
+			if msg, fail := an.checkCapital(message); fail {
 				pass.Reportf(call.Pos(), "%s", msg)
 			}
 		}
 
-		if ca.config.EnglishLetter {
-			ca.checkEnglish(message)
+		if an.config.EnglishLetter {
+			if msg, fail := an.checkEnglish(message); fail {
+				pass.Reportf(call.Pos(), "%s", msg)
+			}
 		}
 
-		if ca.config.SpecialLetters {
-			ca.checkSpecialLetters(message)
+		if an.config.SpecialLetters {
+			if msg, fail := an.checkSpecialLetters(message); fail {
+				pass.Reportf(call.Pos(), "%s", msg)
+			}
 		}
 
-		if ca.config.EnableCustomRules {
-			ca.checkSensitiveData(message, call)
+		if an.config.SensitiveData {
+			if msg, fail := an.checkSensitiveData(message); fail {
+				pass.Reportf(call.Pos(), "%s", msg)
+			}
 		}
 
 	})
@@ -88,26 +95,24 @@ func (ca *Analyzer) Run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func (ca *Analyzer) isLogFunction(call *ast.CallExpr) bool {
+func (an *Analyzer) isLogFunction(call *ast.CallExpr) bool {
 	logMethods := map[string]bool{
 		"Info": true,
 	}
 
 	switch fun := call.Fun.(type) {
 	case *ast.SelectorExpr:
+
 		return logMethods[fun.Sel.Name]
 
 	case *ast.Ident:
-		slog.Info(fmt.Sprintf("%t", call.Fun))
-
 		return logMethods[fun.Name]
 	}
 
 	return false
 }
 
-// Возвращаемый тип у функции проверить
-func (ca *Analyzer) getMessage(expr ast.Expr) (string, bool) {
+func (an *Analyzer) getMessage(expr ast.Expr) (string, bool) {
 	switch lit := expr.(type) {
 	case *ast.CallExpr:
 		if len(lit.Args) == 0 {
@@ -115,51 +120,102 @@ func (ca *Analyzer) getMessage(expr ast.Expr) (string, bool) {
 		}
 
 		for _, arg := range lit.Args {
-			if msg, ok := ca.getMessage(arg); ok {
-				return msg, true
+			if msg, ok := an.getMessage(arg); ok {
+				return strings.Trim(msg, `"'`), true
 			}
 		}
 
 		break
 	case *ast.BasicLit:
 		if lit.Kind == token.STRING {
-			return lit.Value, true
+			return strings.Trim(lit.Value, `"'`), true
 		}
 
 		break
 
 	case *ast.BinaryExpr:
-		if lit.Op == token.AND {
-			left, leftOk := ca.getMessage(lit.X)
-			right, rightOk := ca.getMessage(lit.Y)
+		if lit.Op == token.ADD {
+			left, leftOk := an.getMessage(lit.X)
+			right, rightOk := an.getMessage(lit.Y)
 
 			if leftOk && rightOk {
 				return left + right, true
 			}
+
+			if leftOk {
+				return left, true
+			}
 		}
 
 		break
+
+	case *ast.Ident:
+		if lit.Obj == nil {
+			return "", false
+		}
+
+		if value, ok := lit.Obj.Decl.(*ast.ValueSpec); ok {
+			for _, v := range value.Values {
+				return an.getMessage(v)
+			}
+		}
 	}
 
 	return "", false
 }
 
-func (ca *Analyzer) checkCapital(msg string) (string, bool) {
-	if unicode.IsUpper([]rune(msg)[1]) && unicode.IsLetter([]rune(msg)[1]) {
+func (an *Analyzer) checkCapital(msg string) (string, bool) {
+	if unicode.IsUpper([]rune(msg)[0]) && unicode.IsLetter([]rune(msg)[0]) {
 		return "Start uppercase detected!", true
 	}
 
 	return "", false
 }
 
-func (ca *Analyzer) checkEnglish(msg string) {
+func (an *Analyzer) checkEnglish(msg string) (string, bool) {
+	for _, char := range msg {
+		if match, _ := regexp.MatchString(`[ -~]`, string(char)); !match && unicode.IsLetter(char) {
+			return "Not english character detected!", true
+		}
+	}
 
+	return "", false
 }
 
-func (ca *Analyzer) checkSpecialLetters(msg string) {
+func (an *Analyzer) checkSpecialLetters(msg string) (string, bool) {
+	for _, char := range msg {
+		if !unicode.IsLetter(char) && !unicode.IsSpace(char) && !unicode.IsDigit(char) {
+			return "Special letters detected!", true
+		}
+	}
 
+	return "", false
 }
 
-func (ca *Analyzer) checkSensitiveData(msg string, call *ast.CallExpr) {
+func (an *Analyzer) checkSensitiveData(msg string) (string, bool) {
+	d, err := detector.NewDetector(
+		detector.WithPatterns(detector.Pattern{
+			Name:        "Custom sensitive",
+			Description: "Value that looks like a password, secret, or API key assignment",
+			Expression:  `(?i)(token|secret|password|passwd|api[_\-]?key)\s*[:=]\s*(?:['"]?(?:%s|[A-Za-z0-9_\-/+=)]{6,})['"]?|$)`,
+			Severity:    detector.SeverityHigh,
+			Types:       []string{"credential"},
+		}),
+	)
 
+	if err != nil {
+		return "", false
+	}
+
+	violations, err := d.Scan(msg)
+
+	if err != nil {
+		return "", false
+	}
+
+	for _, violation := range violations {
+		return violation.Description, true
+	}
+
+	return "", false
 }
