@@ -3,12 +3,12 @@ package selectelLint
 import (
 	"flag"
 	detector "github.com/kevinwang15/sensitive-data-detector"
+	"github.com/pvpender/selectelLint/config"
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"pvpender/selectelLint/config"
 	"regexp"
 	"strings"
 	"unicode"

@@ -1,5 +1,5 @@
 version: v2.6.1
 name: github.com/pvpender/selectelLint
 plugins:
-  - module: 'pvpender/selectelLint'
+  - module: 'github.com/pvpender/selectelLint'
     path: ./

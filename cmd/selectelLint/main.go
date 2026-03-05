@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/pvpender/selectelLint/analyzers/selectelLint"
 	"golang.org/x/tools/go/analysis/singlechecker"
-	"pvpender/selectelLint/analyzers/selectelLint"
 )
 
 func main() {
