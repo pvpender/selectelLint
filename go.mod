@@ -1,4 +1,4 @@
-module pvpender/selectelLint
+module github.com/pvpender/selectelLint
 
 go 1.24.10
 
