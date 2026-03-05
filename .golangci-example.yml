@@ -1,0 +1,21 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - sclint
+
+  settings:
+    custom:
+      sclint:
+        type: module
+        settings:
+          capitalLetter: true
+          englishLetter: true
+          specialLetters: true
+          sensitiveData: true
+          enableCustomRules: true
+          rules:
+            - name: "Test"
+              description: "Digits restricted!"
+              pattern: '\d+'

@@ -1,8 +1,9 @@
 package selectelLint
 
 import (
-	"golang.org/x/tools/go/analysis/analysistest"
 	"testing"
+
+	"golang.org/x/tools/go/analysis/analysistest"
 )
 
 func TestSelectelLint(t *testing.T) {
@@ -48,7 +49,6 @@ func TestSelectelLint(t *testing.T) {
 
 			for k, v := range test.options {
 				err := an.Flags.Set(k, v)
-
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -57,5 +57,4 @@ func TestSelectelLint(t *testing.T) {
 			analysistest.Run(t, test.path, an)
 		})
 	}
-
 }

@@ -2,16 +2,17 @@ package selectelLint
 
 import (
 	"flag"
-	detector "github.com/kevinwang15/sensitive-data-detector"
-	"github.com/pvpender/selectelLint/config"
 	"go/ast"
 	"go/token"
-	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 	"regexp"
 	"strings"
 	"unicode"
+
+	detector "github.com/kevinwang15/sensitive-data-detector"
+	"github.com/pvpender/selectelLint/config"
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 type Analyzer struct {
@@ -73,43 +74,62 @@ func (an *Analyzer) Run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		if an.config.CapitalLetter {
-			if msg, fail := an.checkCapital(message); fail {
-				pass.Reportf(call.Pos(), "%s", msg)
+		an.runChecker(an.config.CapitalLetter, pass, call, an.checkCapital, message)
+		an.runChecker(an.config.EnglishLetter, pass, call, an.checkEnglish, message)
+		an.runChecker(an.config.SpecialLetters, pass, call, an.checkSpecialLetters, message)
+		an.runChecker(an.config.SensitiveData, pass, call, an.checkSensitiveData, message)
+
+		if an.config.EnableCustomRules {
+			for _, rule := range an.config.Rules {
+				if msg, fail := an.checkCustomRule(message, &rule); fail {
+					pass.Reportf(call.Pos(), "%s", msg)
+				}
 			}
 		}
-
-		if an.config.EnglishLetter {
-			if msg, fail := an.checkEnglish(message); fail {
-				pass.Reportf(call.Pos(), "%s", msg)
-			}
-		}
-
-		if an.config.SpecialLetters {
-			if msg, fail := an.checkSpecialLetters(message); fail {
-				pass.Reportf(call.Pos(), "%s", msg)
-			}
-		}
-
-		if an.config.SensitiveData {
-			if msg, fail := an.checkSensitiveData(message); fail {
-				pass.Reportf(call.Pos(), "%s", msg)
-			}
-		}
-
 	})
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (an *Analyzer) isLogFunction(call *ast.CallExpr) bool {
 	logMethods := map[string]bool{
-		"Info": true,
+		"Debug":        true,
+		"DebugContext": true,
+		"DebugCtx":     true,
+		"Error":        true,
+		"ErrorContext": true,
+		"ErrorCtx":     true,
+		"Info":         true,
+		"InfoContext":  true,
+		"InfoCtx":      true,
+		"Log":          true,
+		"LogAttrs":     true,
+		"Warn":         true,
+		"WarnContext":  true,
+		"WarnCtx":      true,
+		"DPanic":       true,
+		"DPanicf":      true,
+		"DPanicw":      true,
+		"Fatal":        true,
+		"Fatalf":       true,
+		"Fatalw":       true,
+		"Panic":        true,
+		"Debugf":       true,
+		"Debugw":       true,
+		"Errorf":       true,
+		"Errorw":       true,
+		"Infof":        true,
+		"Infow":        true,
+		"Logf":         true,
+		"Logw":         true,
+		"Panicf":       true,
+		"Panicw":       true,
+		"Warnf":        true,
+		"Warnw":        true,
 	}
 
 	switch fun := call.Fun.(type) {
 	case *ast.SelectorExpr:
-
 		return logMethods[fun.Sel.Name]
 
 	case *ast.Ident:
@@ -132,13 +152,10 @@ func (an *Analyzer) getMessage(expr ast.Expr) (string, bool) {
 			}
 		}
 
-		break
 	case *ast.BasicLit:
 		if lit.Kind == token.STRING {
 			return strings.Trim(lit.Value, `"'`), true
 		}
-
-		break
 
 	case *ast.BinaryExpr:
 		if lit.Op == token.ADD {
@@ -153,8 +170,6 @@ func (an *Analyzer) getMessage(expr ast.Expr) (string, bool) {
 				return left, true
 			}
 		}
-
-		break
 
 	case *ast.Ident:
 		if lit.Obj == nil {
@@ -171,6 +186,22 @@ func (an *Analyzer) getMessage(expr ast.Expr) (string, bool) {
 	return "", false
 }
 
+func (an *Analyzer) runChecker(
+	shouldRun bool,
+	pass *analysis.Pass,
+	call *ast.CallExpr,
+	checker func(string) (string, bool),
+	message string,
+) {
+	if !shouldRun {
+		return
+	}
+
+	if msg, fail := checker(message); fail {
+		pass.Reportf(call.Pos(), "%s", msg)
+	}
+}
+
 func (an *Analyzer) checkCapital(msg string) (string, bool) {
 	if unicode.IsUpper([]rune(msg)[0]) && unicode.IsLetter([]rune(msg)[0]) {
 		return "Start uppercase detected!", true
@@ -180,8 +211,9 @@ func (an *Analyzer) checkCapital(msg string) (string, bool) {
 }
 
 func (an *Analyzer) checkEnglish(msg string) (string, bool) {
+	re := regexp.MustCompile(`[ -~]`)
 	for _, char := range msg {
-		if match, _ := regexp.MatchString(`[ -~]`, string(char)); !match && unicode.IsLetter(char) {
+		if match := re.MatchString(string(char)); !match && unicode.IsLetter(char) {
 			return "Not english character detected!", true
 		}
 	}
@@ -209,13 +241,38 @@ func (an *Analyzer) checkSensitiveData(msg string) (string, bool) {
 			Types:       []string{"credential"},
 		}),
 	)
-
 	if err != nil {
 		return "", false
 	}
 
 	violations, err := d.Scan(msg)
+	if err != nil {
+		return "", false
+	}
 
+	for _, violation := range violations {
+		return violation.Description, true
+	}
+
+	return "", false
+}
+
+func (an *Analyzer) checkCustomRule(msg string, rule *config.Rule) (string, bool) {
+	d, err := detector.NewDetector(
+		detector.WithoutDefaultPatterns(),
+		detector.WithPatterns(detector.Pattern{
+			Name:        rule.Name,
+			Description: rule.Description,
+			Expression:  rule.Pattern,
+			Severity:    detector.SeverityHigh,
+			Types:       []string{"credential"},
+		}),
+	)
+	if err != nil {
+		return "", false
+	}
+
+	violations, err := d.Scan(msg)
 	if err != nil {
 		return "", false
 	}

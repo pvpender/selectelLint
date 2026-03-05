@@ -3,11 +3,48 @@ version: "2"
 linters:
   default: none
   enable:
-    - sclint
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - asciicheck
+    - bidichk
+    - canonicalheader
+    - containedctx
+    - copyloopvar
+    - decorder
+    - dupword
+    - durationcheck
+    - err113
+    - errname
+    - exptostd
+    - gochecknoglobals
+    - gocognit
+    - goconst
+    - gocyclo
+    - goheader
+    - gosec
+    - govet
+    - importas
+    - makezero
+    - mnd
+    - nestif
+    - nilnil
+    - noctx
+    - perfsprint
+    - prealloc
+    - reassign
+    - sloglint
+    - tagalign
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - whitespace
+    - wsl_v5
 
-  settings:
-    custom:
-      sclint:
-        type: module
-        settings:
-          CapitalLetter: false
+formatters:
+  enable:
+    - goimports
+    - gci
+    - gofmt

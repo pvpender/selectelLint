@@ -1,15 +1,18 @@
 package config
 
 type Rule struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Pattern     string `json:"pattern"`
 }
 
 type Config struct {
-	CapitalLetter     bool
-	EnglishLetter     bool
-	SpecialLetters    bool
-	SensitiveData     bool
-	EnableCustomRules bool
-	Rules             []Rule
+	CapitalLetter     bool   `json:"capitalLetter"`
+	EnglishLetter     bool   `json:"englishLetter"`
+	SpecialLetters    bool   `json:"specialLetters"`
+	SensitiveData     bool   `json:"sensitiveData"`
+	EnableCustomRules bool   `json:"enableCustomRules"`
+	Rules             []Rule `json:"rules"`
 }
 
 func NewConfig() *Config {
