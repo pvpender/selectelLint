@@ -12,30 +12,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
         cache: true
 
-    - name: Prepare - Install golangci-lint
-      run: |
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      shell: bash
+    - name: Golangci-lint
+      uses: golangci/golangci-lint-action@v9
+      with:
+        version: v2.10
 
-    - name: Test - Run unit tests
+    - name: Run unit tests
       working-directory: analyzers/selectelLint
       run: |
         go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       shell: bash
 
-    - name: Test - Upload coverage
+    - name: Upload coverage
       uses: codecov/codecov-action@v5
       with:
-        file: ./analyzers/selectelLint/coverage.txt
+        files: ./analyzers/selectelLint/coverage.txt
         flags: unittests
         name: codecov-umbrella
 
@@ -45,21 +44,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
         cache: true
 
-    - name: Prepare - Install golangci-lint
-      run: |
-        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      shell: bash
+    - name: Install golangci-lint
+      uses: golangci/golangci-lint-action@v9
+      with:
+        install-only: true
+        version: v2.10
 
-    - name: Deploy - Build custom linter binary
+    - name: Build custom linter binary
       if: github.event_name == 'release' || github.ref == 'refs/heads/main'
       run: |
           golangci-lint custom -v
@@ -76,7 +75,7 @@ jobs:
           fi
       shell: bash
 
-    - name: Deploy - Upload binary to workflow artifacts
+    - name: Upload binary to workflow artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -87,14 +86,14 @@ jobs:
         retention-days: 30
         if-no-files-found: warn
 
-    - name: Deploy - Upload to release assets
+    - name: Upload to release assets
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: ./selectellint-${{ github.ref_name }}
 
 
-    - name: Deploy - Create latest binary
+    - name: Create latest binary
       if: github.ref == 'refs/heads/main'
       run: |
         LATEST=$(ls -t selectellint-* 2>/dev/null | head -1)
@@ -104,7 +103,7 @@ jobs:
         fi
       shell: bash
 
-    - name: Deploy - Upload latest binary
+    - name: Upload latest binary
       if: github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
