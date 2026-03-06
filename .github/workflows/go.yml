@@ -23,7 +23,7 @@ jobs:
     - name: Golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.10
+        version: v2.10.1
 
     - name: Run unit tests
       working-directory: analyzers/selectelLint
@@ -52,17 +52,15 @@ jobs:
         go-version: '1.25'
         cache: true
 
-    - name: Install golangci-lint
+    - name: Build golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
         install-only: true
-        version: v2.10
+        version: v2.10.1
 
-    - name: Build custom linter binary
+    - name: Rename custom linter binary
       if: github.event_name == 'release' || github.ref == 'refs/heads/main'
       run: |
-          golangci-lint custom -v
-          
           if [ -f "custom-gcl" ]; then
             VERSION="${{ github.ref_name }}"
             if [ "$VERSION" = "" ]; then
