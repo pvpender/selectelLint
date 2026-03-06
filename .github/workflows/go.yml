@@ -85,7 +85,7 @@ jobs:
         if-no-files-found: warn
 
     - name: Upload to release assets
-      if: github.event_name == 'release'
+      if: github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
       with:
         files: ./selectellint-${{ github.ref_name }}
