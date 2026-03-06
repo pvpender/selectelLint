@@ -1,4 +1,4 @@
-version: v2.10
+version: v2.10.1
 
 plugins:
   - module: 'github.com/pvpender/selectelLint'
