@@ -84,13 +84,6 @@ jobs:
         retention-days: 30
         if-no-files-found: warn
 
-    - name: Upload to release assets
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v2
-      with:
-        files: ./selectellint-${{ github.ref_name }}
-
-
     - name: Create latest binary
       if: github.ref == 'refs/heads/main'
       run: |
@@ -108,3 +101,12 @@ jobs:
         name: selectellint-latest
         path: selectellint-latest
         retention-days: 90
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Development Build"
+        files: |
+          ./selectellint-${{ github.ref_name }}
