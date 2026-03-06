@@ -1,9 +1,9 @@
 package selectelLint
 
 import (
-	"github.com/pvpender/selectelLint/config"
 	"testing"
 
+	"github.com/pvpender/selectelLint/config"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
