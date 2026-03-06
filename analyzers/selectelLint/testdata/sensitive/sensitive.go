@@ -1,6 +1,9 @@
 package sensitive
 
-import "log/slog"
+import (
+	"fmt"
+	"log/slog"
+)
 
 const PASSWORD = "SuperSecretPassword18234!"
 
@@ -27,4 +30,8 @@ func SprintToken() {
 
 func NoSensitive() {
 	slog.Warn("config is invalid")
+}
+
+func PasswordFormated() {
+	slog.Debug(fmt.Sprintf("password: %s", PASSWORD)) // want `Value that looks like a password, secret, or API key assignment`
 }

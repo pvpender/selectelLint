@@ -1,6 +1,7 @@
 package selectelLint
 
 import (
+	"github.com/pvpender/selectelLint/config"
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
@@ -8,9 +9,10 @@ import (
 
 func TestSelectelLint(t *testing.T) {
 	testCases := []struct {
-		name    string
-		path    string
-		options map[string]string
+		name        string
+		path        string
+		options     map[string]string
+		customRules []config.Rule
 	}{
 		{
 			name: "capital",
@@ -41,11 +43,43 @@ func TestSelectelLint(t *testing.T) {
 				"specialLetter": "false",
 			},
 		},
+		{
+			name: "Custom",
+			path: analysistest.TestData() + "/custom",
+			options: map[string]string{
+				"enableCustomRules": "true",
+			},
+			customRules: []config.Rule{
+				{
+					Name:        "Digit special password",
+					Description: "Digit detected!",
+					Pattern:     "\\d+",
+				},
+				{
+					Name:        "Author",
+					Description: "Author detected!",
+					Pattern:     "(\\s+)?pvpender(\\s+)?",
+				},
+			},
+		},
 	}
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			an := NewAnalyzer()
+			cfg := config.NewConfig()
+
+			if len(test.customRules) > 0 {
+				cfg.EnableCustomRules = true
+				for _, rule := range test.customRules {
+					cfg.Rules = append(cfg.Rules, config.Rule{
+						Name:        rule.Name,
+						Description: rule.Description,
+						Pattern:     rule.Pattern,
+					})
+				}
+			}
+
+			an := NewAnalyzer(cfg)
 
 			for k, v := range test.options {
 				err := an.Flags.Set(k, v)
